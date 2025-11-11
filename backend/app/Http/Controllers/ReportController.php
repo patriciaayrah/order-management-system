@@ -1,0 +1,48 @@
+<?php
+
+namespace App\Http\Controllers;
+
+use App\Models\Order;
+use App\Models\Product;
+use Illuminate\Http\Request;
+
+class ReportController extends Controller
+{
+    public function index()
+    {
+        // Total Orders Summary
+        $totalOrders = Order::count();
+        $cancelledOrders = Order::where('status', 'cancelled')->count();
+        $confirmedOrders = Order::where('status', 'confirmed')->count();
+        $createdOrders = Order::where('status', 'created')->count();
+
+        // Revenue Calculations
+        $totalRevenue = Order::where('status', 'confirmed')->sum('total_amount');
+
+        // Inventory Status Overview
+        $totalProducts = Product::count();
+        
+        $lowStockProducts = Product::where('stock_quantity', '<', 5)->get(['id','name','stock_quantity']); // customize threshold
+        $outOfStockProducts = Product::where('stock_quantity', 0)->get(['id','name','stock_quantity']);
+
+        return response()->json([
+            'orders_summary' => [
+                'total' => $totalOrders,
+                'created' => $createdOrders,
+                'confirmed' => $confirmedOrders,
+                'cancelled' => $cancelledOrders,
+            ],
+            'revenue' => [
+                'total_revenue' => $totalRevenue,
+            ],
+            'inventory' => [
+                'total_products' => $totalProducts,
+                'low_stock_count' => $lowStockProducts->count(),
+                'low_stock_products' => $lowStockProducts,
+                'out_of_stock_count' => $outOfStockProducts->count(),
+                'out_of_stock_products' => $outOfStockProducts,
+            ]
+        ]);
+    }
+    
+}
