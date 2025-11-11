@@ -7,5 +7,7 @@ use App\Http\Controllers\OrderController;
 
 //INVENTORY MODULE
 Route::apiResource('products', ProductManagementController::class);
+Route::post('inventory-logs', [ProductManagementController::class, 'updateStock']);
+
 //ORDER MODULE
 Route::apiResource('orders', OrderController::class);
