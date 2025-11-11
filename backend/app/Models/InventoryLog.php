@@ -13,4 +13,9 @@ class InventoryLog extends Model
         'quantity_change',
         'reason'
     ];
+
+    public function product()
+    {
+        return $this->belongsTo(Product::class);
+    }
 }

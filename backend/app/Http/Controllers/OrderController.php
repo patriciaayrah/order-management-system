@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\InventoryLog;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use App\Models\Order;
@@ -79,9 +80,9 @@ class OrderController extends Controller
         if ($order->status === 'created') {
             OrderItem::insert($orderItems);
         }else if ($order->status === 'confirmed') {
-            $this->deductInventory($validated['items']);
+            $this->deduct_inventory($validated['items']);
         } elseif ($order->status === 'cancelled') {
-            $this->restoreInventory($validated['items']);
+            $this->restore_inventory($validated['items']);
         }
 
         return response()->json([
@@ -116,13 +117,21 @@ class OrderController extends Controller
     /**
      * Deduct product stock when order is confirmed
      */
-    protected function deductInventory(array $items)
+    protected function deduct_inventory(array $items)
     {
         foreach ($items as $item) {
             $product = Product::find($item['product_id']);
             if ($product) {
                 $product->stock_quantity = max(0, $product->stock_quantity- $item['quantity']); // prevent negative
                 $product->save();
+
+                // Log the deduction
+                InventoryLog::create([
+                    'product_id' => $product->id,
+                    'change_type' => 'deduction',
+                    'quantity_change' => -$item['quantity'],
+                    'reason' => 'Order confirmed: stock deducted.',
+                ]);
             }
         }
 
@@ -131,13 +140,21 @@ class OrderController extends Controller
     /**
      * Restore product stock when order is cancelled
      */
-    protected function restoreInventory(array $items)
+    protected function restore_inventory(array $items)
     {
         foreach ($items as $item) {
             $product = Product::find($item['product_id']);
             if ($product) {
                 $product->stock_quantity += $item['quantity'];
                 $product->save();
+
+                // Log the restore
+                InventoryLog::create([
+                    'product_id' => $product->id,
+                    'change_type' => 'restore',
+                    'quantity_change' => $item['quantity'],
+                    'reason' => 'Order cancelled: stock restored.',
+                ]);
             }
         }
     }
