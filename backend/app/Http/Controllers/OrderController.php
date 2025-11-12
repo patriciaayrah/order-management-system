@@ -18,7 +18,42 @@ class OrderController extends Controller
     
     public function index()
     {
-        return response()->json(Order::all(), 200);
+        $orders = Order::with(['orderItem.product'])
+            ->orderBy('created_at', 'asc')
+            ->get()
+            ->groupBy('order_number')
+            ->map(function ($group) {
+
+                // Sort statuses by updated_at ascending (chronological)
+                $statuses = $group->map(function ($order) {
+                    return [
+                        'status' => $order->status,
+                        'created_at' => $order->created_at,
+                        'updated_at' => $order->updated_at
+                    ];
+                })
+                ->sortBy('updated_at')
+                ->values();
+
+                // Take the latest status based on updated_at
+                $latestStatus = $statuses->last();
+
+                // Take first order for main info
+                $mainOrder = $group->first();
+                $mainOrder->status = $latestStatus['status'];
+                $mainOrder->updated_at = $latestStatus['updated_at'];
+
+                // Assign statuses array
+                $mainOrder->statuses = $statuses;
+
+                // Merge all order items
+                $mainOrder->order_item = $group->pluck('order_item')->flatten()->values();
+
+                return $mainOrder;
+            })
+            ->values();
+
+            return response()->json($orders, 200);
     }
 
     /**
@@ -88,6 +123,7 @@ class OrderController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'Order processed successfully.',
+            'data' => $order
         ], 201);
       
     }
@@ -98,7 +134,10 @@ class OrderController extends Controller
      */
     public function show($id)
     {
-        $order = Order::where('order_number', $id)->get();
+        $order = Order::with(['orderItem.product'])
+                    ->where('order_number', $id)
+                    ->first();
+
             return $order
                 ? response()->json($order, 200)
                 : response()->json(['message' => 'Order not found'], 404);
