@@ -12,4 +12,10 @@ class Order extends Model
         'status',
         'total_amount',
     ];
+
+      // Reverse relation
+    public function orderItem()
+    {
+        return $this->hasMany(OrderItem::class, 'order_id');
+    }
 }
