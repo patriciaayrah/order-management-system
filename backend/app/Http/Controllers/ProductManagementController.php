@@ -45,10 +45,10 @@ class ProductManagementController extends Controller
 
         $product = Product::create($validated);
 
-        // Log the restore
+        // Log the Inventory
         InventoryLog::create([
             'product_id' => $product->id,
-            'change_type' => 'restore',
+            'change_type' => 'Additions',
             'quantity_change' => $request->stock_quantity,
             'reason' => 'Product Initial stock',
         ]);
@@ -86,57 +86,6 @@ class ProductManagementController extends Controller
         $item->update(array_merge(
             $request->only(['name', 'desc', 'description', 'price'])));
         return response()->json($item, 200);
-    }
-
-    /**
-     * Update the specified resource in storage.
-     * Update specific Product
-     */
-    public function updateStock(Request $request)
-    {
-
-        $validated = $request->validate([
-            'product_id' => 'required|integer',
-            'quantity' => 'required|integer',
-        ]);
-
-        $product = Product::findOrFail($request->product_id);
-        $oldStock = $product->stock_quantity;
-
-        // Update stock
-        $product->stock_quantity += $request->quantity;
-        $product->save();
-
-        // Determine change type and quantity difference
-        $difference = $product->stock_quantity - $oldStock;
-
-        if ($difference > 0) {
-            $changeType = 'addition';
-        } elseif ($difference < 0) {
-            $changeType = 'deduction';
-        } else {
-            $changeType = 'no_change';
-        }
-
-        // Only log if stock actually changed
-        if ($difference !== 0) {
-            InventoryLog::create([
-                'product_id' => $product->id,
-                'change_type' => $changeType,
-                'quantity_change' => $difference,
-                'reason' => 'Manual '.$changeType . ' of stock',
-            ]);
-        }
-
-        return response()->json([
-            'success' => true,
-            'message' => 'Stock updated successfully.',
-            'data' => [
-                'product' => $product,
-                'change_type' => $changeType,
-                'quantity_change' => $difference,
-            ],
-        ]);
     }
 
     /**

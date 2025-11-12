@@ -13,4 +13,9 @@ class Product extends Model
         'price',
         'stock_quantity'
     ];
+
+    public function inventoryLog()
+    {
+        return $this->hasMany(InventoryLog::class, 'product_id');
+    }
 }
