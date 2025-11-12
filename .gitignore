@@ -29,3 +29,46 @@ Homestead.json
 .phpactor.json
 auth.json
 .DS_Store
+.next/
+
+# Next.js build output
+.next/
+out/
+
+# Production build
+build/
+dist/
+
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# Environment variables
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# OS-specific files
+.DS_Store
+Thumbs.db
+
+# Editor-specific files
+.vscode/
+.idea/
+*.swp
+
+# Optional: lock files (if not used consistently)
+# package-lock.json
+# yarn.lock
+# pnpm-lock.yaml
+
+# Misc cache
+.cache/
+.vercel/
