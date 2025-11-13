@@ -8,6 +8,8 @@ use Illuminate\Support\Facades\Validator;
 use App\Models\Order;
 use App\Models\OrderItem;
 use App\Models\Product;
+use Illuminate\Support\Facades\Log;
+use Exception;
 
 class OrderController extends Controller
 {
@@ -18,7 +20,10 @@ class OrderController extends Controller
     
     public function index()
     {
-        $orders = Order::with(['orderItem.product'])
+
+        try {
+
+            $orders = Order::with(['orderItem.product'])
             ->orderBy('created_at', 'asc')
             ->get()
             ->groupBy('order_number')
@@ -54,6 +59,12 @@ class OrderController extends Controller
             ->values();
 
             return response()->json($orders, 200);
+
+        }catch (Exception $e) {
+
+            Log::error('Failed to fetch orders: '.$e->getMessage());
+            return response()->json(['error' => 'Unable to load orders'], 500);
+        }   
     }
 
     /**
@@ -82,50 +93,61 @@ class OrderController extends Controller
 
         $validated = $validator->validated();
 
-        // Generate order number if not provided
-        $order_number = $validated['order_number'] ?? $this->generate_order_number();
+        try {
 
-        // Recalculate total_amount from the items (to ensure data integrity)
-        $computed_total = 0;
-        foreach ($validated['items'] as $item) {
-            $computed_total += $item['unit_price'] * $item['quantity'];
+            // Generate order number if not provided
+            $order_number = $validated['order_number'] ?? $this->generate_order_number();
+
+            // Recalculate total_amount from the items (to ensure data integrity)
+            $computed_total = 0;
+            foreach ($validated['items'] as $item) {
+                $computed_total += $item['unit_price'] * $item['quantity'];
+            }
+
+            // Create the order
+            $order = Order::create([
+                'order_number' => $order_number,
+                'status' => $validated['status'],
+                'total_amount' => $computed_total,
+            ]);
+
+            // Bulk insert all order items
+            $orderItems = array_map(function ($item) use ($order) {
+                return [
+                    'order_id' => $order->id,
+                    'product_id' => $item['product_id'],
+                    'unit_price' => $item['unit_price'],
+                    'quantity' => $item['quantity'],
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ];
+            }, $validated['items']);
+
+
+            // Update stock or restore inventory depending on order status
+            if ($order->status === 'created') {
+                OrderItem::insert($orderItems);
+            }else if ($order->status === 'confirmed') {
+                $this->deduct_inventory($validated['items']);
+            } elseif ($order->status === 'cancelled') {
+                $this->restore_inventory($validated['items']);
+            }
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Order processed successfully.',
+                'data' => $order
+            ], 201);
+
+        }catch (Exception $e) {
+
+            Log::error('Order creation failed: '.$e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Order creation failed.',
+                'error' => $e->getMessage(),
+            ], 500);
         }
-
-        // Create the order
-        $order = Order::create([
-            'order_number' => $order_number,
-            'status' => $validated['status'],
-            'total_amount' => $computed_total,
-        ]);
-
-        // Bulk insert all order items
-        $orderItems = array_map(function ($item) use ($order) {
-            return [
-                'order_id' => $order->id,
-                'product_id' => $item['product_id'],
-                'unit_price' => $item['unit_price'],
-                'quantity' => $item['quantity'],
-                'created_at' => now(),
-                'updated_at' => now(),
-            ];
-        }, $validated['items']);
-
-
-        // Update stock or restore inventory depending on order status
-        if ($order->status === 'created') {
-            OrderItem::insert($orderItems);
-        }else if ($order->status === 'confirmed') {
-            $this->deduct_inventory($validated['items']);
-        } elseif ($order->status === 'cancelled') {
-            $this->restore_inventory($validated['items']);
-        }
-
-        return response()->json([
-            'success' => true,
-            'message' => 'Order processed successfully.',
-            'data' => $order
-        ], 201);
-      
     }
 
     /**
@@ -134,13 +156,23 @@ class OrderController extends Controller
      */
     public function show($id)
     {
-        $order = Order::with(['orderItem.product'])
+        try {
+
+            $order = Order::with(['orderItem.product'])
                     ->where('order_number', $id)
                     ->first();
 
             return $order
                 ? response()->json($order, 200)
                 : response()->json(['message' => 'Order not found'], 404);
+
+        }catch (Exception $e) {
+
+            Log::error('Failed to load order: '.$e->getMessage());
+            return response()->json(['error' => 'Failed to retrieve order'], 500);
+
+        }
+        
     }
 
     /**
