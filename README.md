@@ -5,6 +5,10 @@ This is a full-stack inventory and order management system built with **Laravel*
 
 ---
 
+## Demo Link
+VIDEO: https://youtu.be/o3WQT5pNT3M
+SCREENSHOT: https://github.com/patriciaayrah/order-management-system/tree/master/Screenshot
+
 ## Core Requirements
 
 ### 1. Product / Inventory Management
