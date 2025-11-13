@@ -23,11 +23,10 @@ class ReportController extends Controller
             $createdOrders = Order::where('status', 'created')->count();
 
             // Revenue Calculations
-            $totalRevenue = Order::select('order_number', DB::raw('SUM(total_amount) as order_total'))
-                ->groupBy('order_number')
-                ->havingRaw('SUM(CASE WHEN status = "confirmed" THEN 1 ELSE 0 END) > 0') // has confirmed
-                ->havingRaw('SUM(CASE WHEN status = "cancelled" THEN 1 ELSE 0 END) = 0')  // no cancelled
-                ->sum('order_total');
+            $totalConfirmed = Order::where('status', 'confirmed')->sum('total_amount');
+            $totalRefund = Order::where('status', 'cancelled')->sum('total_amount');
+
+            $totalRevenue = $totalConfirmed - $totalRefund;
             // Inventory Status Overview
             $totalProducts = Product::count();
             
