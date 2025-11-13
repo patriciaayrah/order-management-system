@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Order;
 use App\Models\Product;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Exception;
@@ -22,8 +23,11 @@ class ReportController extends Controller
             $createdOrders = Order::where('status', 'created')->count();
 
             // Revenue Calculations
-            $totalRevenue = Order::where('status', 'confirmed')->sum('total_amount');
-
+            $totalRevenue = Order::select('order_number', DB::raw('SUM(total_amount) as order_total'))
+                ->groupBy('order_number')
+                ->havingRaw('SUM(CASE WHEN status = "confirmed" THEN 1 ELSE 0 END) > 0') // has confirmed
+                ->havingRaw('SUM(CASE WHEN status = "cancelled" THEN 1 ELSE 0 END) = 0')  // no cancelled
+                ->sum('order_total');
             // Inventory Status Overview
             $totalProducts = Product::count();
             
